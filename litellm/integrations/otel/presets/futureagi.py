@@ -1,7 +1,7 @@
 from types import MappingProxyType
 from typing import Final
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from litellm.integrations.otel.model.config import (
@@ -22,8 +22,8 @@ FUTUREAGI_SECRET_KEY_HEADER: Final = "X-Secret-Key"
 class _FutureAGISettings(BaseSettings):
     model_config = SettingsConfigDict(case_sensitive=False, extra="ignore", frozen=True)
 
-    api_key: str | None = Field(default=None, validation_alias="FI_API_KEY")
-    secret_key: str | None = Field(default=None, validation_alias="FI_SECRET_KEY")
+    api_key: str | None = Field(default=None, validation_alias=AliasChoices("FUTUREAGI_API_KEY", "FI_API_KEY"))
+    secret_key: str | None = Field(default=None, validation_alias=AliasChoices("FUTUREAGI_SECRET_KEY", "FI_SECRET_KEY"))
     base_url: str | None = Field(default=None, validation_alias="FI_BASE_URL")
     project_name: str | None = Field(default=None, validation_alias="FI_PROJECT_NAME")
 

@@ -3686,7 +3686,7 @@ class AllCallbacks(LiteLLMPydanticObjectBase):
     futureagi: CallbackOnUI = CallbackOnUI(
         litellm_callback_name="futureagi",
         ui_callback_name="Future AGI",
-        litellm_callback_params=("FI_API_KEY", "FI_SECRET_KEY", "FI_PROJECT_NAME", "FI_BASE_URL"),
+        litellm_callback_params=("FUTUREAGI_API_KEY", "FUTUREAGI_SECRET_KEY", "FI_PROJECT_NAME", "FI_BASE_URL"),
     )
 
     zerobus: CallbackOnUI = CallbackOnUI(

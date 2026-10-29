@@ -280,7 +280,14 @@ def test_signoz_preset_accepts_the_factory_call_shape(monkeypatch):
     assert any(e.owner == ExporterOwner.SIGNOZ for e in cfg.exporters)
 
 
-_FUTUREAGI_ENV = ("FI_API_KEY", "FI_SECRET_KEY", "FI_BASE_URL", "FI_PROJECT_NAME")
+_FUTUREAGI_ENV = (
+    "FI_API_KEY",
+    "FI_SECRET_KEY",
+    "FI_BASE_URL",
+    "FI_PROJECT_NAME",
+    "FUTUREAGI_API_KEY",
+    "FUTUREAGI_SECRET_KEY",
+)
 
 
 def _futureagi_env(monkeypatch, **values):
@@ -304,6 +311,19 @@ def test_futureagi_preset_sets_endpoint_headers_and_project_name(monkeypatch):
     assert cfg.resource_attributes["project_name"] == "proxy-prod"
     assert cfg.resource_attributes["project_type"] == "observe"
     assert "genai" in cfg.mapper_names
+
+
+def test_futureagi_saved_dashboard_credentials_override_env_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    _futureagi_env(
+        monkeypatch,
+        FI_API_KEY="operator-key",
+        FI_SECRET_KEY="operator-secret",
+        FUTUREAGI_API_KEY="dashboard-key",
+        FUTUREAGI_SECRET_KEY="dashboard-secret",
+    )
+    from litellm.integrations.otel.presets.futureagi import futureagi_preset
+
+    assert futureagi_preset().exporters[-1].headers == "X-Api-Key=dashboard-key,X-Secret-Key=dashboard-secret"
 
 
 def test_futureagi_preset_defaults_the_project_to_litellm(monkeypatch):
