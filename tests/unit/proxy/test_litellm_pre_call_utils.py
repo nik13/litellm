@@ -11082,3 +11082,28 @@ def test_mapped_baggage_tags_keep_non_string_client_tags_as_sent():
     data: Final[dict[str, object]] = {"metadata": {"tags": [1, {"team": "x"}, "client-tag", "client-tag"]}}
     LiteLLMProxyRequestSetup.apply_authenticated_baggage_tags(request, data)
     assert data["metadata"]["tags"] == [1, {"team": "x"}, "client-tag", "client-tag", "tenant:a"]
+
+
+def test_futureagi_callback_vars_are_scoped_to_the_futureagi_callback():
+    from litellm.proxy._types import AddTeamCallback
+    from litellm.proxy.litellm_pre_call_utils import convert_key_logging_metadata_to_callback
+
+    under_futureagi = convert_key_logging_metadata_to_callback(
+        data=AddTeamCallback(
+            callback_name="futureagi",
+            callback_type="success",
+            callback_vars={"futureagi_api_key": "team-key", "futureagi_secret_key": "team-secret"},
+        ),
+        team_callback_settings_obj=None,
+    )
+    assert under_futureagi.callback_vars == {"futureagi_api_key": "team-key", "futureagi_secret_key": "team-secret"}
+
+    under_other = convert_key_logging_metadata_to_callback(
+        data=AddTeamCallback(
+            callback_name="langfuse",
+            callback_type="success",
+            callback_vars={"futureagi_api_key": "team-key", "langfuse_host": "https://cloud.langfuse.com"},
+        ),
+        team_callback_settings_obj=None,
+    )
+    assert under_other.callback_vars == {"langfuse_host": "https://cloud.langfuse.com"}

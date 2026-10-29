@@ -13807,3 +13807,71 @@ def test_record_native_bedrock_guardrail_bills_each_call_its_own_trace_when_call
     (first_cost, second_cost) = costs
     assert second_cost == pytest.approx(2 * first_cost)
     assert shared_metadata == {"tag": "x"}
+
+
+def _futureagi_dispatch(logging_module):
+    return logging_module._init_custom_logger_compatible_class(
+        logging_integration="futureagi",
+        internal_usage_cache=None,
+        llm_router=None,
+        custom_logger_init_args={},
+    )
+
+
+def test_futureagi_dispatch_builds_one_otel_v2_logger(monkeypatch):
+    from litellm.integrations.otel.logger import OpenTelemetryV2
+    from litellm.integrations.otel.model.config import ExporterOwner, is_otel_v2_enabled
+    from litellm.litellm_core_utils import litellm_logging as logging_module
+
+    logging_module._in_memory_loggers.clear()
+    monkeypatch.setenv("LITELLM_OTEL_V2", "true")
+    monkeypatch.setenv("FI_API_KEY", "fi-key")
+    monkeypatch.setenv("FI_SECRET_KEY", "fi-secret")
+    monkeypatch.setenv("FI_PROJECT_NAME", "proxy-prod")
+    monkeypatch.delenv("FI_BASE_URL", raising=False)
+    is_otel_v2_enabled.cache_clear()
+    try:
+        v2_logger = _futureagi_dispatch(logging_module)
+        assert isinstance(v2_logger, OpenTelemetryV2)
+        assert v2_logger.callback_name == "futureagi"
+        spec = next(e for e in v2_logger.config.exporters if e.owner == ExporterOwner.FUTUREAGI)
+        assert spec.traces_endpoint == "https://api.futureagi.com/tracer/v1/traces"
+        assert spec.headers == "X-Api-Key=fi-key,X-Secret-Key=fi-secret"
+        assert v2_logger.config.resource_attributes["project_name"] == "proxy-prod"
+        assert _futureagi_dispatch(logging_module) is v2_logger
+    finally:
+        logging_module._in_memory_loggers.clear()
+        monkeypatch.delenv("LITELLM_OTEL_V2", raising=False)
+        is_otel_v2_enabled.cache_clear()
+
+
+@pytest.mark.parametrize(
+    "otel_v2, keys",
+    [
+        # The legacy OTel callback has no setting for the project_name resource attribute.
+        (False, {"FI_API_KEY": "fi-key", "FI_SECRET_KEY": "fi-secret"}),
+        # Without the operator's pair the startup logger would export nowhere.
+        (True, {"FI_API_KEY": "fi-key"}),
+    ],
+)
+def test_futureagi_dispatch_registers_nothing_it_cannot_export_with(monkeypatch, otel_v2, keys):
+    from litellm.integrations.otel.model.config import is_otel_v2_enabled
+    from litellm.litellm_core_utils import litellm_logging as logging_module
+
+    logging_module._in_memory_loggers.clear()
+    if otel_v2:
+        monkeypatch.setenv("LITELLM_OTEL_V2", "true")
+    else:
+        monkeypatch.delenv("LITELLM_OTEL_V2", raising=False)
+    for name in ("FI_API_KEY", "FI_SECRET_KEY", "FI_PROJECT_NAME", "FI_BASE_URL"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in keys.items():
+        monkeypatch.setenv(name, value)
+    is_otel_v2_enabled.cache_clear()
+    try:
+        assert _futureagi_dispatch(logging_module) is None
+        assert not [cb for cb in logging_module._in_memory_loggers if getattr(cb, "callback_name", None) == "futureagi"]
+    finally:
+        logging_module._in_memory_loggers.clear()
+        monkeypatch.delenv("LITELLM_OTEL_V2", raising=False)
+        is_otel_v2_enabled.cache_clear()

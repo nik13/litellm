@@ -278,3 +278,99 @@ def test_signoz_preset_accepts_the_factory_call_shape(monkeypatch):
 
     cfg = PRESET_BY_CALLBACK["signoz"](allow_missing_credentials=True)
     assert any(e.owner == ExporterOwner.SIGNOZ for e in cfg.exporters)
+
+
+_FUTUREAGI_ENV = ("FI_API_KEY", "FI_SECRET_KEY", "FI_BASE_URL", "FI_PROJECT_NAME")
+
+
+def _futureagi_env(monkeypatch, **values):
+    for name in _FUTUREAGI_ENV:
+        monkeypatch.delenv(name, raising=False)
+    for name, value in values.items():
+        monkeypatch.setenv(name, value)
+
+
+def test_futureagi_preset_sets_endpoint_headers_and_project_name(monkeypatch):
+    _futureagi_env(monkeypatch, FI_API_KEY="fi-key", FI_SECRET_KEY="fi-secret", FI_PROJECT_NAME="proxy-prod")
+    from litellm.integrations.otel.model.config import ExporterOwner
+    from litellm.integrations.otel.presets.futureagi import futureagi_preset
+
+    cfg = futureagi_preset()
+    spec = next(e for e in cfg.exporters if e.owner == ExporterOwner.FUTUREAGI)
+    assert spec.kind == "otlp_http"
+    assert spec.traces_endpoint == "https://api.futureagi.com/tracer/v1/traces"
+    assert spec.headers == "X-Api-Key=fi-key,X-Secret-Key=fi-secret"
+    assert spec.requires_headers is True
+    # Future AGI rejects a batch whose resource names no project.
+    assert cfg.resource_attributes["project_name"] == "proxy-prod"
+    assert cfg.resource_attributes["project_type"] == "observe"
+    assert "genai" in cfg.mapper_names
+
+
+def test_futureagi_preset_defaults_the_project_to_litellm(monkeypatch):
+    _futureagi_env(monkeypatch, FI_API_KEY="fi-key", FI_SECRET_KEY="fi-secret")
+    from litellm.integrations.otel.presets.futureagi import futureagi_preset
+
+    assert futureagi_preset().resource_attributes["project_name"] == "litellm"
+
+
+def test_futureagi_preset_without_both_keys_is_gated(monkeypatch):
+    # One key alone would earn a 401 per batch, so it counts as no operator credentials:
+    # only key/team traffic, which carries its own pair, is exported.
+    _futureagi_env(monkeypatch, FI_API_KEY="fi-key")
+    from litellm.integrations.otel.model.config import ExporterOwner
+    from litellm.integrations.otel.presets.futureagi import futureagi_preset
+
+    spec = next(e for e in futureagi_preset().exporters if e.owner == ExporterOwner.FUTUREAGI)
+    assert spec.headers is None
+    assert spec.requires_headers is True
+
+
+def test_futureagi_preset_respects_fi_base_url(monkeypatch):
+    _futureagi_env(
+        monkeypatch, FI_API_KEY="fi-key", FI_SECRET_KEY="fi-secret", FI_BASE_URL="http://futureagi.internal:8000/"
+    )
+    from litellm.integrations.otel.model.config import ExporterOwner
+    from litellm.integrations.otel.presets.futureagi import futureagi_preset
+
+    spec = next(e for e in futureagi_preset().exporters if e.owner == ExporterOwner.FUTUREAGI)
+    assert spec.traces_endpoint == "http://futureagi.internal:8000/tracer/v1/traces"
+
+
+def test_futureagi_preset_builds_an_uncompressed_exporter_at_the_tracer_path(monkeypatch):
+    _futureagi_env(monkeypatch, FI_API_KEY="fi-key", FI_SECRET_KEY="fi-secret")
+    monkeypatch.delenv("OTEL_EXPORTER_OTLP_COMPRESSION", raising=False)
+    monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_COMPRESSION", raising=False)
+    from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+    from litellm.integrations.otel.model.config import ExporterOwner
+    from litellm.integrations.otel.presets.futureagi import futureagi_preset
+
+    spec = next(e for e in futureagi_preset().exporters if e.owner == ExporterOwner.FUTUREAGI)
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(providers._exporter_from_spec(spec)))
+    try:
+        with requests_mock.Mocker() as network:
+            network.post("https://api.futureagi.com/tracer/v1/traces", status_code=200)
+            with provider.get_tracer("futureagi-test").start_as_current_span("preset-proof"):
+                pass
+            assert network.call_count == 1
+            request = network.last_request
+            assert request.headers["X-Api-Key"] == "fi-key"
+            assert request.headers["X-Secret-Key"] == "fi-secret"
+            assert request.headers.get("Content-Encoding") in (None, "identity")
+            payload = ExportTraceServiceRequest.FromString(request.body)
+            assert payload.resource_spans[0].scope_spans[0].spans[0].name == "preset-proof"
+    finally:
+        provider.shutdown()
+
+
+def test_futureagi_preset_accepts_the_factory_call_shape(monkeypatch):
+    _futureagi_env(monkeypatch)
+    from litellm.integrations.otel.model.config import ExporterOwner
+    from litellm.integrations.otel.presets import PRESET_BY_CALLBACK
+
+    cfg = PRESET_BY_CALLBACK["futureagi"](allow_missing_credentials=True)
+    assert any(e.owner == ExporterOwner.FUTUREAGI for e in cfg.exporters)

@@ -105,6 +105,27 @@
     "description": "Datadog Custom Metrics Integration"
   },
   {
+    "id": "futureagi",
+    "displayName": "Future AGI",
+    "logo": "futureagi.svg",
+    "supports_key_team_logging": true,
+    "dynamic_params": {
+      "futureagi_api_key": {
+        "type": "password",
+        "ui_name": "Future AGI API Key",
+        "description": "API key for this team's Future AGI workspace. Keys: https://app.futureagi.com/dashboard/keys",
+        "required": true
+      },
+      "futureagi_secret_key": {
+        "type": "password",
+        "ui_name": "Future AGI Secret Key",
+        "description": "Secret key paired with the API key. Traces land in that workspace, in the project the proxy's FI_PROJECT_NAME names (default litellm).",
+        "required": true
+      }
+    },
+    "description": "Future AGI Logging Integration. Setup: https://docs.futureagi.com/docs/integrations/gateways/litellm-proxy/"
+  },
+  {
     "id": "galileo",
     "displayName": "Galileo",
     "logo": "galileo.ico",

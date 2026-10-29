@@ -2,6 +2,7 @@ import arizeLogo from "../../public/assets/logos/arize.png";
 import awsLogo from "../../public/assets/logos/aws.svg";
 import braintrustLogo from "../../public/assets/logos/braintrust.png";
 import datadogLogo from "../../public/assets/logos/datadog.png";
+import futureagiLogo from "../../public/assets/logos/futureagi.svg";
 import galileoLogo from "../../public/assets/logos/galileo.ico";
 import lagoLogo from "../../public/assets/logos/lago.svg";
 import langfuseLogo from "../../public/assets/logos/langfuse.png";
@@ -63,6 +64,17 @@ export const CALLBACK_CONFIGS: CallbackConfig[] = [
       custom_callback_api_headers: "text",
     },
     description: "Custom Callback API Logging Integration",
+  },
+  {
+    id: "futureagi",
+    displayName: "Future AGI",
+    logo: futureagiLogo.src,
+    supports_key_team_logging: true,
+    dynamic_params: {
+      futureagi_api_key: "password",
+      futureagi_secret_key: "password",
+    },
+    description: "Future AGI Logging Integration. Setup: https://docs.futureagi.com/docs/integrations/gateways/litellm-proxy/",
   },
   {
     id: "galileo",

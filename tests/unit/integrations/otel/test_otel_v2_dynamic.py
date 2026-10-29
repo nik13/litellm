@@ -743,3 +743,67 @@ def test_signoz_keyless_team_endpoint_is_ignored_so_the_operator_key_never_reach
     owned = next(e for e in routed.exporters if e.owner == "signoz")
     assert owned.endpoint == "https://ingest.us.signoz.cloud:443"
     assert owned.headers == "signoz-ingestion-key=OPERATOR"
+
+
+def test_futureagi_dynamic_headers_need_both_keys():
+    assert dynamic_otlp_headers("futureagi", {"futureagi_api_key": "k"}) is None
+    assert dynamic_otlp_headers("futureagi", {"futureagi_secret_key": "s"}) is None
+    assert dynamic_otlp_headers("futureagi", {"futureagi_api_key": "k", "futureagi_secret_key": "s"}) == {
+        "X-Api-Key": "k",
+        "X-Secret-Key": "s",
+    }
+
+
+def test_futureagi_team_keys_replace_the_operator_keys_on_its_own_exporter_only():
+    cache = _cache(
+        "futureagi",
+        exporters=[
+            ExporterSpec(
+                kind="otlp_http",
+                endpoint="http://self-hosted-collector:4318",
+                headers="x=base-collector",
+                owner=None,
+            ),
+            ExporterSpec(
+                kind="otlp_http",
+                traces_endpoint="https://api.futureagi.com/tracer/v1/traces",
+                headers="X-Api-Key=OPERATOR,X-Secret-Key=OPERATOR-SECRET",
+                owner="futureagi",
+                requires_headers=True,
+            ),
+        ],
+    )
+    team_headers = dynamic_otlp_headers(
+        "futureagi", {"futureagi_api_key": "TEAM", "futureagi_secret_key": "TEAM-SECRET"}
+    )
+    routed = cache._routed_config(team_headers, {})
+    by_owner = {e.owner: e for e in routed.exporters}
+    assert parse_headers(by_owner["futureagi"].headers) == {"x-api-key": "TEAM", "x-secret-key": "TEAM-SECRET"}
+    assert by_owner["futureagi"].traces_endpoint == "https://api.futureagi.com/tracer/v1/traces"
+    assert by_owner[None].headers == "x=base-collector"
+
+
+def test_futureagi_team_route_keeps_the_project_resource_attribute():
+    # The routed config is a copy, so team traffic still names a project and is not rejected.
+    cfg = OpenTelemetryV2Config(
+        exporters=[ExporterSpec(kind="otlp_http", owner="futureagi", use_simple_processor=True, requires_headers=True)],
+        resource_attributes={"project_name": "litellm", "project_type": "observe"},
+    )
+    cache = TenantTracerCache(cfg, "futureagi", "litellm")
+    routed = cache._routed_config({"X-Api-Key": "TEAM", "X-Secret-Key": "TEAM-SECRET"}, {})
+    assert routed.resource_attributes == {"project_name": "litellm", "project_type": "observe"}
+
+
+def test_futureagi_provider_cached_per_key_pair():
+    cache = _cache(
+        "futureagi",
+        exporters=[ExporterSpec(kind="in_memory"), ExporterSpec(kind="otlp_http", owner="futureagi")],
+    )
+    default = NoOpTracer()
+    cache.route_for(default, {"futureagi_api_key": "K1", "futureagi_secret_key": "S1"})
+    cache.route_for(default, {"futureagi_api_key": "K1", "futureagi_secret_key": "S1"})
+    assert len(cache._providers) == 1
+    cache.route_for(default, {"futureagi_api_key": "K2", "futureagi_secret_key": "S2"})
+    assert len(cache._providers) == 2
+    # Half a pair is no route: the request keeps the default tracer.
+    assert cache.route_for(default, {"futureagi_api_key": "K3"}).tracer is default

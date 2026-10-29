@@ -5731,6 +5731,14 @@ def build_custom_logger_compatible_class(
         _in_memory_loggers.append(_signoz_logger)
         return _signoz_logger
 
+    elif logging_integration == "futureagi":
+        _futureagi_v2: Final = _maybe_construct_otel_v2("futureagi", _in_memory_loggers)
+        if _futureagi_v2 is not None:
+            return _futureagi_v2
+        # V2 only: Future AGI rejects a batch without the ``project_name`` resource
+        # attribute, which only the V2 preset sets (the legacy logger has no setting for it).
+        raise ValueError("futureagi needs LITELLM_OTEL_V2=true and both FI_API_KEY and FI_SECRET_KEY set")
+
     elif logging_integration == "mlflow":
         for callback in _in_memory_loggers:
             if isinstance(callback, MlflowLogger):

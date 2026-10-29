@@ -267,6 +267,7 @@ services = (
         "datadog_llm_observability",
         "generic_api",
         "arize",
+        "futureagi",
         "galileo",
         "newrelic",
         "pointfive",

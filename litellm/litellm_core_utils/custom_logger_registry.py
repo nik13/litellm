@@ -97,6 +97,7 @@ class CustomLoggerRegistry:
         "weave_otel": OpenTelemetry,
         "levo": OpenTelemetry,
         "signoz": OpenTelemetry,
+        "futureagi": OpenTelemetry,
         "mlflow": MlflowLogger,
         "langfuse": LangfusePromptManagement,
         "otel": OpenTelemetry,

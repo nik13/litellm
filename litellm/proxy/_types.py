@@ -3679,6 +3679,12 @@ class AllCallbacks(LiteLLMPydanticObjectBase):
         litellm_callback_params=("SIGNOZ_INGESTION_ENDPOINT", "SIGNOZ_INGESTION_KEY"),
     )
 
+    futureagi: CallbackOnUI = CallbackOnUI(
+        litellm_callback_name="futureagi",
+        ui_callback_name="Future AGI",
+        litellm_callback_params=("FI_API_KEY", "FI_SECRET_KEY", "FI_PROJECT_NAME", "FI_BASE_URL"),
+    )
+
     zerobus: CallbackOnUI = CallbackOnUI(
         litellm_callback_name="zerobus",
         ui_callback_name="Databricks Zerobus",

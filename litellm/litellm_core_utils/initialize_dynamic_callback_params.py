@@ -145,6 +145,8 @@ _supported_callback_params: Final[tuple[str, ...]] = (
     "newrelic_region",
     "signoz_ingestion_endpoint",
     "signoz_ingestion_key",
+    "futureagi_api_key",
+    "futureagi_secret_key",
     "turn_off_message_logging",
 )
 
@@ -160,6 +162,8 @@ _request_blocked_callback_params: Final = frozenset(
         "newrelic_region",
         "signoz_ingestion_endpoint",
         "signoz_ingestion_key",
+        "futureagi_api_key",
+        "futureagi_secret_key",
     }
 )
 
@@ -174,6 +178,8 @@ _trusted_overlay_callback_params: Final = frozenset(
         "newrelic_region",
         "signoz_ingestion_endpoint",
         "signoz_ingestion_key",
+        "futureagi_api_key",
+        "futureagi_secret_key",
     }
 )
 
