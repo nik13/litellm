@@ -1540,7 +1540,7 @@ async def test_health_services_endpoint_datadog_llm_observability():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "service", ["zerobus", "langsmith", "otel", "langfuse_otel", "datadog_llm_observability", "signoz"]
+    "service", ["zerobus", "langsmith", "otel", "langfuse_otel", "datadog_llm_observability", "signoz", "futureagi"]
 )
 async def test_health_services_endpoint_tests_any_known_callback_configured_via_callbacks(service: str):
     """A logger without its own health check, wired through litellm_settings.callbacks, gets the mock request."""

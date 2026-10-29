@@ -15,6 +15,10 @@ from typing import Final
 from litellm.integrations.otel.presets.agentops import agentops_preset
 from litellm.integrations.otel.presets.arize import arize_dynamic_headers, arize_preset
 from litellm.integrations.otel.presets.base import Preset
+from litellm.integrations.otel.presets.futureagi import (
+    futureagi_dynamic_headers,
+    futureagi_preset,
+)
 from litellm.integrations.otel.presets.langfuse import (
     langfuse_dynamic_headers,
     langfuse_preset,
@@ -45,6 +49,7 @@ PRESET_BY_CALLBACK: Final[Mapping[str, Preset]] = MappingProxyType(
         "agentops": agentops_preset,
         "arize": arize_preset,
         "arize_phoenix": phoenix_preset,
+        "futureagi": futureagi_preset,
         "langfuse_otel": langfuse_preset,
         "langtrace": langtrace_preset,
         "levo": levo_preset,
@@ -62,6 +67,7 @@ DYNAMIC_HEADERS_BY_CALLBACK: Final[Mapping[str, Callable[[StandardCallbackDynami
     MappingProxyType(
         {
             "arize": arize_dynamic_headers,
+            "futureagi": futureagi_dynamic_headers,
             "langfuse_otel": langfuse_dynamic_headers,
             "newrelic": newrelic_dynamic_headers,
             "signoz": signoz_dynamic_headers,
@@ -155,6 +161,7 @@ __all__ = [
     "arize_preset",
     "dynamic_otlp_endpoint",
     "dynamic_otlp_headers",
+    "futureagi_preset",
     "langfuse_preset",
     "langtrace_preset",
     "levo_preset",
